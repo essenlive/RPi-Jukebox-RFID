@@ -1,5 +1,56 @@
+# Git
+.git
+.gitignore
+.github
+
+# Documentation
+docs/
+
+# Tests
+tests/
+ci/
+.coveragerc
+.flake8
+.editorconfig
+.markdownlint-cli2.yaml
+
+# Logs
+logs/
+*.log
+
+# Temporary files
 */temp*
 */*/temp*
-*.md
-.git
-.github
+*.tmp
+*.swp
+*~
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# PHP
+vendor/
+composer.lock
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+BACKUP/
+*.bak
+*.backup

@@ -1,0 +1,38 @@
+version: '2.1'
+
+services:
+  phoniebox:
+    build: .
+    privileged: true
+    network_mode: host
+    restart: unless-stopped
+
+    volumes:
+      - 'phoniebox-data:/home/phoniebox/RPi-Jukebox-RFID/shared'
+      - 'mpd-data:/var/lib/mpd'
+      - 'phoniebox-logs:/home/phoniebox/RPi-Jukebox-RFID/logs'
+
+    devices:
+      - "/dev/snd:/dev/snd"
+      - "/dev/gpiomem:/dev/gpiomem"
+
+    cap_add:
+      - SYS_RAWIO
+      - SYS_ADMIN
+
+    labels:
+      io.balena.features.kernel-modules: '1'
+      io.balena.features.firmware: '1'
+      io.balena.features.dbus: '1'
+      io.balena.features.sysfs: '1'
+      io.balena.features.procfs: '1'
+      io.balena.features.supervisor-api: '1'
+
+    environment:
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host/run/dbus/system_bus_socket
+      - UDEV=1
+
+volumes:
+  phoniebox-data:
+  mpd-data:
+  phoniebox-logs:

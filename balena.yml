@@ -1,0 +1,31 @@
+name: phoniebox
+type: sw.application
+description: >-
+  Phoniebox - A contactless jukebox for the Raspberry Pi, playing audio files,
+  playlists, podcasts, web streams triggered by RFID cards.
+version: 3.0.0-balena
+
+fleet:
+  - raspberry-pi
+  - raspberry-pi2
+  - raspberry-pi3
+  - raspberry-pi4
+  - raspberrypi3-64
+  - raspberrypi4-64
+
+assets:
+  repository:
+    type: git
+    url: https://github.com/MiczFlor/RPi-Jukebox-RFID
+  logo:
+    src: https://raw.githubusercontent.com/MiczFlor/RPi-Jukebox-RFID/master/docs/img/logo.png
+    type: image/png
+
+data:
+  applicationEnvironmentVariables:
+    - JUKEBOX_HOME_DIR: /home/phoniebox/RPi-Jukebox-RFID
+    - TZ: Europe/Berlin
+
+  applicationConfigVariables:
+    - BALENA_HOST_CONFIG_gpu_mem: 16
+    - BALENA_HOST_CONFIG_dtparam: "audio=on,spi=on"
