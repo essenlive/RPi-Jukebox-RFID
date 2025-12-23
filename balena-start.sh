@@ -22,6 +22,31 @@ if [ ! -L /var/lib/mpd/music/audiofolders ]; then
     ln -sf ${JUKEBOX_HOME_DIR}/shared/audiofolders /var/lib/mpd/music/audiofolders
 fi
 
+# Start D-Bus for Bluetooth
+echo "Starting D-Bus..."
+mkdir -p /var/run/dbus
+dbus-daemon --system --fork || echo "D-Bus already running"
+
+# Start Bluetooth service
+echo "Starting Bluetooth..."
+bluetoothd &
+sleep 2
+
+# Enable Bluetooth and make it discoverable
+echo "Configuring Bluetooth..."
+bluetoothctl power on || echo "Bluetooth power on failed, continuing..."
+bluetoothctl agent on || echo "Bluetooth agent on failed, continuing..."
+bluetoothctl default-agent || echo "Bluetooth default-agent failed, continuing..."
+
+# Start PulseAudio for Bluetooth audio
+echo "Starting PulseAudio..."
+pulseaudio --start --log-target=syslog || echo "PulseAudio already running"
+sleep 1
+
+# Load Bluetooth modules for PulseAudio
+pactl load-module module-bluetooth-discover || echo "Bluetooth module already loaded"
+pactl load-module module-bluetooth-policy || echo "Bluetooth policy module already loaded"
+
 # Configure MPD
 cat > /etc/mpd.conf <<EOF
 music_directory "/var/lib/mpd/music"
@@ -38,6 +63,12 @@ port "6600"
 audio_output {
     type "alsa"
     name "ALSA Device"
+    mixer_type "software"
+}
+
+audio_output {
+    type "pulse"
+    name "PulseAudio Output"
     mixer_type "software"
 }
 EOF
@@ -135,5 +166,17 @@ while true; do
         echo "RFID daemon died, restarting..."
         cd ${JUKEBOX_HOME_DIR}/scripts
         python3 daemon_rfid_reader.py &
+    fi
+
+    # Check if Bluetooth daemon is running
+    if ! pgrep -x bluetoothd > /dev/null; then
+        echo "Bluetooth daemon died, restarting..."
+        bluetoothd &
+    fi
+
+    # Check if PulseAudio is running
+    if ! pgrep -x pulseaudio > /dev/null; then
+        echo "PulseAudio died, restarting..."
+        pulseaudio --start --log-target=syslog &
     fi
 done

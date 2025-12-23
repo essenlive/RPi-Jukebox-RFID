@@ -39,7 +39,13 @@ RUN install_packages \
     wget \
     systemd \
     dbus \
-    udev
+    udev \
+    bluetooth \
+    bluez \
+    bluez-tools \
+    libasound2-plugins \
+    pulseaudio \
+    pulseaudio-module-bluetooth
 
 # Set working directory
 WORKDIR /home/phoniebox/RPi-Jukebox-RFID
@@ -66,6 +72,11 @@ RUN mkdir -p /var/log/lighttpd && \
 RUN mkdir -p /var/lib/mpd/music /var/lib/mpd/playlists && \
     ln -sf /home/phoniebox/RPi-Jukebox-RFID/shared/audiofolders /var/lib/mpd/music/audiofolders && \
     chown -R mpd:audio /var/lib/mpd
+
+# Configure Bluetooth
+RUN usermod -G bluetooth -a www-data && \
+    usermod -G bluetooth -a mpd && \
+    mkdir -p /var/run/dbus
 
 # Copy startup script
 COPY balena-start.sh /usr/local/bin/balena-start.sh

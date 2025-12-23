@@ -94,6 +94,50 @@ Connect speakers or headphones to:
 - HDMI (if using a monitor/TV)
 - USB sound card
 - HAT audio boards (HiFiBerry, etc.)
+- **Bluetooth speakers/headphones** (fully supported!)
+
+### Bluetooth Audio
+
+Phoniebox on Balena includes full Bluetooth audio support:
+
+**How it works:**
+1. Bluetooth is automatically started and enabled on boot
+2. PulseAudio manages Bluetooth audio connections
+3. MPD can output to both ALSA and Bluetooth devices
+
+**Pairing a Bluetooth device:**
+
+1. SSH into your device: `balena ssh <device-uuid>`
+2. Enter the Bluetooth control interface: `bluetoothctl`
+3. Scan for devices: `scan on`
+4. Wait for your device to appear (e.g., `Device AA:BB:CC:DD:EE:FF HeadphoneName`)
+5. Pair with the device: `pair AA:BB:CC:DD:EE:FF`
+6. Trust the device: `trust AA:BB:CC:DD:EE:FF`
+7. Connect to the device: `connect AA:BB:CC:DD:EE:FF`
+8. Exit bluetoothctl: `exit`
+
+**Auto-reconnection:**
+Once paired and trusted, Bluetooth devices will automatically reconnect when powered on.
+
+**Switching between Bluetooth and speakers:**
+- Use the Phoniebox web interface to toggle between audio outputs
+- Or use RFID cards configured for audio sink switching
+- MPD supports multiple audio outputs simultaneously
+
+**Troubleshooting Bluetooth:**
+```bash
+# Check Bluetooth status
+bluetoothctl show
+
+# Check paired devices
+bluetoothctl devices
+
+# Check PulseAudio sinks
+pactl list sinks short
+
+# Restart Bluetooth if needed
+pkill bluetoothd && bluetoothd &
+```
 
 ### GPIO Buttons (Optional)
 
@@ -208,9 +252,11 @@ Edit the MPD configuration in `balena-start.sh` to customize audio output settin
 - ✅ Web interface
 - ✅ MPD audio playback
 - ✅ Playlists and audio management
+- ✅ **Bluetooth audio support** (speakers and headphones)
 - ✅ GPIO support (for buttons and controls)
 - ✅ SPI support (for RC522, PN532 readers)
 - ✅ Automatic service recovery
+- ✅ PulseAudio integration
 
 ### Limitations
 
