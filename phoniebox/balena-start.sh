@@ -1,5 +1,6 @@
 #!/bin/bash
 # Balena startup script for Phoniebox
+# Audio is handled by the separate audio service
 
 set -e
 
@@ -8,6 +9,7 @@ echo "Starting Phoniebox on Balena..."
 # Set up environment
 export JUKEBOX_HOME_DIR=${JUKEBOX_HOME_DIR:-/home/phoniebox/RPi-Jukebox-RFID}
 export PATH=$PATH:$JUKEBOX_HOME_DIR/scripts
+export PULSE_SERVER=${PULSE_SERVER:-tcp:audio:4317}
 
 # Create necessary directories if they don't exist
 mkdir -p ${JUKEBOX_HOME_DIR}/shared/audiofolders
@@ -22,32 +24,18 @@ if [ ! -L /var/lib/mpd/music/audiofolders ]; then
     ln -sf ${JUKEBOX_HOME_DIR}/shared/audiofolders /var/lib/mpd/music/audiofolders
 fi
 
-# Start D-Bus for Bluetooth
-echo "Starting D-Bus..."
-mkdir -p /var/run/dbus
-dbus-daemon --system --fork || echo "D-Bus already running"
+# Wait for audio service to be ready
+echo "Waiting for audio service..."
+for i in {1..30}; do
+    if pactl info &>/dev/null; then
+        echo "Audio service is ready!"
+        break
+    fi
+    echo "Waiting for PulseAudio... ($i/30)"
+    sleep 2
+done
 
-# Start Bluetooth service
-echo "Starting Bluetooth..."
-bluetoothd &
-sleep 2
-
-# Enable Bluetooth and make it discoverable
-echo "Configuring Bluetooth..."
-bluetoothctl power on || echo "Bluetooth power on failed, continuing..."
-bluetoothctl agent on || echo "Bluetooth agent on failed, continuing..."
-bluetoothctl default-agent || echo "Bluetooth default-agent failed, continuing..."
-
-# Start PulseAudio for Bluetooth audio
-echo "Starting PulseAudio..."
-pulseaudio --start --log-target=syslog || echo "PulseAudio already running"
-sleep 1
-
-# Load Bluetooth modules for PulseAudio
-pactl load-module module-bluetooth-discover || echo "Bluetooth module already loaded"
-pactl load-module module-bluetooth-policy || echo "Bluetooth policy module already loaded"
-
-# Configure MPD
+# Configure MPD with PulseAudio output
 cat > /etc/mpd.conf <<EOF
 music_directory "/var/lib/mpd/music"
 playlist_directory "/var/lib/mpd/playlists"
@@ -57,18 +45,14 @@ pid_file "/run/mpd/pid"
 state_file "/var/lib/mpd/state"
 sticker_file "/var/lib/mpd/sticker.sql"
 
-bind_to_address "localhost"
+bind_to_address "0.0.0.0"
 port "6600"
 
-audio_output {
-    type "alsa"
-    name "ALSA Device"
-    mixer_type "software"
-}
-
+# Use PulseAudio from audio service
 audio_output {
     type "pulse"
-    name "PulseAudio Output"
+    name "Balena Audio"
+    server "${PULSE_SERVER}"
     mixer_type "software"
 }
 EOF
@@ -144,6 +128,7 @@ python3 daemon_rfid_reader.py &
 # Keep container running and monitor services
 echo "Phoniebox started successfully!"
 echo "Web interface available at http://[device-ip]"
+echo "Audio is managed by the 'audio' service"
 
 # Monitor and restart services if they crash
 while true; do
@@ -166,17 +151,5 @@ while true; do
         echo "RFID daemon died, restarting..."
         cd ${JUKEBOX_HOME_DIR}/scripts
         python3 daemon_rfid_reader.py &
-    fi
-
-    # Check if Bluetooth daemon is running
-    if ! pgrep -x bluetoothd > /dev/null; then
-        echo "Bluetooth daemon died, restarting..."
-        bluetoothd &
-    fi
-
-    # Check if PulseAudio is running
-    if ! pgrep -x pulseaudio > /dev/null; then
-        echo "PulseAudio died, restarting..."
-        pulseaudio --start --log-target=syslog &
     fi
 done

@@ -2,9 +2,6 @@
 # Using latest safe Debian Bookworm base image
 FROM balenalib/%%BALENA_MACHINE_NAME%%-debian:bookworm
 
-# Enable systemd init system
-ENV INITSYSTEM on
-
 # Install runtime dependencies
 RUN install_packages \
     samba \
@@ -37,20 +34,12 @@ RUN install_packages \
     tar \
     unzip \
     wget \
-    systemd \
-    dbus \
-    udev \
-    bluetooth \
-    bluez \
-    bluez-tools \
-    libasound2-plugins \
-    pulseaudio \
-    pulseaudio-module-bluetooth
+    dbus
 
 # Set working directory
 WORKDIR /home/phoniebox/RPi-Jukebox-RFID
 
-# Copy application files
+# Copy application files from parent directory
 COPY . .
 
 # Install Python dependencies
@@ -73,13 +62,8 @@ RUN mkdir -p /var/lib/mpd/music /var/lib/mpd/playlists && \
     ln -sf /home/phoniebox/RPi-Jukebox-RFID/shared/audiofolders /var/lib/mpd/music/audiofolders && \
     chown -R mpd:audio /var/lib/mpd
 
-# Configure Bluetooth
-RUN usermod -G bluetooth -a www-data && \
-    usermod -G bluetooth -a mpd && \
-    mkdir -p /var/run/dbus
-
 # Copy startup script
-COPY balena-start.sh /usr/local/bin/balena-start.sh
+COPY phoniebox/balena-start.sh /usr/local/bin/balena-start.sh
 RUN chmod +x /usr/local/bin/balena-start.sh
 
 # Expose web interface port

@@ -2,6 +2,49 @@
 
 This guide explains how to deploy the Phoniebox (RPi-Jukebox-RFID) project to Balena Cloud for easy management and deployment to Raspberry Pi devices.
 
+## Architecture
+
+The Phoniebox Balena deployment uses a modern multi-service architecture:
+
+```
+┌──────────────────────────────────────────────┐
+│            Balena Device                     │
+├──────────────────────────────────────────────┤
+│                                              │
+│  ┌──────────────┐       ┌─────────────────┐ │
+│  │  phoniebox   │       │     audio       │ │
+│  │   service    │──────▶│    service      │ │
+│  │              │ TCP   │   (balena)      │ │
+│  │ - Web UI     │ 4317  │                 │ │
+│  │ - MPD        │       │ - PulseAudio    │ │
+│  │ - RFID       │       │ - Bluetooth     │ │
+│  │ - Lighttpd   │       │ - ALSA          │ │
+│  └──────────────┘       └─────────────────┘ │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+### Services
+
+**Phoniebox Service (`./phoniebox/`):**
+- Main application logic and web interface
+- MPD for music playback control
+- RFID reader daemon
+- Connects to audio service via PulseAudio
+
+**Audio Service ([balenablocks/audio](https://github.com/balena-io-experimental/audio)):**
+- Centralized audio management
+- Bluetooth pairing and connectivity
+- ALSA device management
+- PulseAudio server (TCP port 4317)
+
+**Benefits:**
+- Cleaner separation of concerns
+- Audio updates don't require rebuilding Phoniebox
+- Standard, well-tested audio block
+- Easier Bluetooth management
+- Multi-client audio support
+
 ## Prerequisites
 
 1. A [Balena Cloud](https://www.balena.io/) account (free tier available)
@@ -98,34 +141,48 @@ Connect speakers or headphones to:
 
 ### Bluetooth Audio
 
-Phoniebox on Balena includes full Bluetooth audio support:
+Bluetooth audio is managed by the dedicated **audio service**. This service handles all Bluetooth pairing, connectivity, and audio routing automatically.
 
 **How it works:**
-1. Bluetooth is automatically started and enabled on boot
-2. PulseAudio manages Bluetooth audio connections
-3. MPD can output to both ALSA and Bluetooth devices
+1. Bluetooth is managed by the `audio` service
+2. PulseAudio (in audio service) handles all audio routing
+3. Phoniebox connects via PulseAudio TCP (port 4317)
+4. Audio automatically switches when Bluetooth devices connect
 
 **Pairing a Bluetooth device:**
 
-1. SSH into your device: `balena ssh <device-uuid>`
-2. Enter the Bluetooth control interface: `bluetoothctl`
-3. Scan for devices: `scan on`
-4. Wait for your device to appear (e.g., `Device AA:BB:CC:DD:EE:FF HeadphoneName`)
-5. Pair with the device: `pair AA:BB:CC:DD:EE:FF`
-6. Trust the device: `trust AA:BB:CC:DD:EE:FF`
-7. Connect to the device: `connect AA:BB:CC:DD:EE:FF`
-8. Exit bluetoothctl: `exit`
+1. SSH into the **audio service** (not phoniebox):
+   ```bash
+   balena ssh <device-uuid> audio
+   ```
 
-**Auto-reconnection:**
-Once paired and trusted, Bluetooth devices will automatically reconnect when powered on.
+2. Use bluetoothctl to pair:
+   ```bash
+   bluetoothctl
+   scan on
+   # Wait for your device to appear
+   pair AA:BB:CC:DD:EE:FF
+   trust AA:BB:CC:DD:EE:FF
+   connect AA:BB:CC:DD:EE:FF
+   exit
+   ```
 
-**Switching between Bluetooth and speakers:**
-- Use the Phoniebox web interface to toggle between audio outputs
-- Or use RFID cards configured for audio sink switching
-- MPD supports multiple audio outputs simultaneously
+3. The device will auto-reconnect when powered on
+
+**Configuration via Environment Variables:**
+
+Set these in the Balena dashboard for the `audio` service:
+
+- `AUDIO_OUTPUT`: Output device (default: `AUTO`)
+  - `AUTO`: Automatic detection (recommended)
+  - Specific device name for fixed output
 
 **Troubleshooting Bluetooth:**
+
 ```bash
+# SSH into audio service
+balena ssh <device-uuid> audio
+
 # Check Bluetooth status
 bluetoothctl show
 
@@ -135,9 +192,13 @@ bluetoothctl devices
 # Check PulseAudio sinks
 pactl list sinks short
 
-# Restart Bluetooth if needed
-pkill bluetoothd && bluetoothd &
+# Check audio service logs
+balena logs <device-uuid> audio --tail
 ```
+
+**Advanced: Multi-room audio**
+
+The balena audio block supports multi-room audio. Multiple Phoniebox devices can connect to the same audio service. See the [balena-audio documentation](https://github.com/balena-io-experimental/audio) for details.
 
 ### GPIO Buttons (Optional)
 
@@ -185,17 +246,33 @@ balena ssh <device-uuid>
 
 ### View Logs
 
+The deployment has two services: `phoniebox` and `audio`. You can view logs for each:
+
 ```bash
-# View all logs
+# View phoniebox service logs
+balena logs <device-uuid> phoniebox
+
+# View audio service logs
+balena logs <device-uuid> audio
+
+# View all services logs
 balena logs <device-uuid>
 
 # Follow logs in real-time
-balena logs <device-uuid> --tail
+balena logs <device-uuid> phoniebox --tail
+balena logs <device-uuid> audio --tail
 ```
 
-### SSH into Device
+### SSH into Services
 
 ```bash
+# SSH into phoniebox service
+balena ssh <device-uuid> phoniebox
+
+# SSH into audio service (for Bluetooth management)
+balena ssh <device-uuid> audio
+
+# SSH into host OS
 balena ssh <device-uuid>
 ```
 

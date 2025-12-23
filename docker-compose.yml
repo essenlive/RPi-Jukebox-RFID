@@ -1,11 +1,32 @@
 version: '2.1'
 
 services:
+  # Balena Audio block for audio output (ALSA, PulseAudio, Bluetooth)
+  audio:
+    image: balenablocks/audio:latest
+    privileged: true
+    restart: unless-stopped
+
+    ports:
+      - "4317:4317"  # PulseAudio TCP
+
+    labels:
+      io.balena.features.dbus: '1'
+      io.balena.features.bluetooth: '1'
+
+    environment:
+      # Audio block configuration
+      AUDIO_OUTPUT: AUTO  # AUTO, ALSA, or Bluetooth device
+      AUDIO_LOG_LEVEL: info
+
+  # Phoniebox main application
   phoniebox:
-    build: .
+    build: ./phoniebox
     privileged: true
     network_mode: host
     restart: unless-stopped
+    depends_on:
+      - audio
 
     volumes:
       - 'phoniebox-data:/home/phoniebox/RPi-Jukebox-RFID/shared'
@@ -13,13 +34,10 @@ services:
       - 'phoniebox-logs:/home/phoniebox/RPi-Jukebox-RFID/logs'
 
     devices:
-      - "/dev/snd:/dev/snd"
       - "/dev/gpiomem:/dev/gpiomem"
 
     cap_add:
       - SYS_RAWIO
-      - SYS_ADMIN
-      - NET_ADMIN
 
     labels:
       io.balena.features.kernel-modules: '1'
@@ -28,9 +46,9 @@ services:
       io.balena.features.sysfs: '1'
       io.balena.features.procfs: '1'
       io.balena.features.supervisor-api: '1'
-      io.balena.features.bluetooth: '1'
 
     environment:
+      - PULSE_SERVER=tcp:audio:4317
       - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host/run/dbus/system_bus_socket
       - UDEV=1
 
