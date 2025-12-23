@@ -7,24 +7,39 @@ This directory contains the Phoniebox application service for Balena deployment.
 The Phoniebox Balena deployment uses a multi-service architecture:
 
 ```
-┌─────────────────────────────────────────┐
-│           Balena Device                 │
-├─────────────────────────────────────────┤
-│                                         │
-│  ┌───────────────┐   ┌──────────────┐  │
-│  │  phoniebox    │   │    audio     │  │
-│  │   service     │──▶│   service    │  │
-│  │               │   │  (balena)    │  │
-│  │ - Web UI      │   │              │  │
-│  │ - MPD         │   │ - PulseAudio │  │
-│  │ - RFID        │   │ - Bluetooth  │  │
-│  │ - Lighttpd    │   │ - ALSA       │  │
-│  └───────────────┘   └──────────────┘  │
-│                                         │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│              Balena Device                       │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────┐ │
+│  │wifi-connect │  │  phoniebox  │  │  audio  │ │
+│  │   service   │  │   service   │─▶│ service │ │
+│  │  (balena)   │  │             │  │(balena) │ │
+│  │             │  │ - Web UI    │  │         │ │
+│  │ - Hotspot   │  │ - MPD       │  │ - Pulse │ │
+│  │ - Portal    │  │ - RFID      │  │ - BT    │ │
+│  │ - WiFi Cfg  │  │ - Lighttpd  │  │ - ALSA  │ │
+│  └─────────────┘  └─────────────┘  └─────────┘ │
+│                                                  │
+└──────────────────────────────────────────────────┘
 ```
 
 ## Services
+
+### WiFi-Connect Service (Balena Block)
+
+**Purpose:** WiFi configuration via captive portal
+
+**Components:**
+- Automatic WiFi hotspot when no connection
+- Web-based captive portal
+- Network management
+
+**Source:** [balenablocks/wifi-connect](https://github.com/balena-io-blocks/wifi-connect)
+
+**Default Credentials:**
+- SSID: `Phoniebox_Setup`
+- Password: `PlayItLoud`
 
 ### Phoniebox Service (this directory)
 

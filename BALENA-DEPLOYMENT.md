@@ -7,24 +7,30 @@ This guide explains how to deploy the Phoniebox (RPi-Jukebox-RFID) project to Ba
 The Phoniebox Balena deployment uses a modern multi-service architecture:
 
 ```
-┌──────────────────────────────────────────────┐
-│            Balena Device                     │
-├──────────────────────────────────────────────┤
-│                                              │
-│  ┌──────────────┐       ┌─────────────────┐ │
-│  │  phoniebox   │       │     audio       │ │
-│  │   service    │──────▶│    service      │ │
-│  │              │ TCP   │   (balena)      │ │
-│  │ - Web UI     │ 4317  │                 │ │
-│  │ - MPD        │       │ - PulseAudio    │ │
-│  │ - RFID       │       │ - Bluetooth     │ │
-│  │ - Lighttpd   │       │ - ALSA          │ │
-│  └──────────────┘       └─────────────────┘ │
-│                                              │
-└──────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                   Balena Device                         │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │ wifi-connect │  │  phoniebox   │  │    audio     │ │
+│  │   service    │  │   service    │─▶│   service    │ │
+│  │  (balena)    │  │              │  │  (balena)    │ │
+│  │              │  │ - Web UI     │  │              │ │
+│  │ - Hotspot    │  │ - MPD        │  │ - PulseAudio │ │
+│  │ - Portal     │  │ - RFID       │  │ - Bluetooth  │ │
+│  │ - WiFi Setup │  │ - Lighttpd   │  │ - ALSA       │ │
+│  └──────────────┘  └──────────────┘  └──────────────┘ │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### Services
+
+**WiFi-Connect Service ([balenablocks/wifi-connect](https://github.com/balena-io-blocks/wifi-connect)):**
+- Automatic WiFi hotspot when no connection
+- Web-based captive portal for WiFi configuration
+- SSID: `Phoniebox_Setup`, Password: `PlayItLoud`
+- No internet needed for initial setup
 
 **Phoniebox Service (`./phoniebox/`):**
 - Main application logic and web interface
@@ -40,8 +46,9 @@ The Phoniebox Balena deployment uses a modern multi-service architecture:
 
 **Benefits:**
 - Cleaner separation of concerns
+- Easy WiFi setup without keyboard/monitor
 - Audio updates don't require rebuilding Phoniebox
-- Standard, well-tested audio block
+- Standard, well-tested Balena blocks
 - Easier Bluetooth management
 - Multi-client audio support
 
@@ -204,9 +211,70 @@ The balena audio block supports multi-room audio. Multiple Phoniebox devices can
 
 If using GPIO buttons for control, they will be automatically detected if configured in the Phoniebox settings.
 
+## WiFi Configuration
+
+### First-Time Setup (No WiFi Configured)
+
+When your Phoniebox boots without a known WiFi network, the **wifi-connect** service automatically creates a WiFi hotspot:
+
+1. **Look for the hotspot:**
+   - SSID: `Phoniebox_Setup`
+   - Password: `PlayItLoud`
+
+2. **Connect to the hotspot** with your phone, tablet, or computer
+
+3. **Captive portal opens automatically:**
+   - If not, navigate to `http://192.168.42.1`
+   - You'll see a list of available WiFi networks
+
+4. **Select your WiFi network** and enter the password
+
+5. **Phoniebox connects** to your WiFi and the hotspot disappears
+
+6. **Find your Phoniebox** IP address in the Balena dashboard
+
+### Changing WiFi Networks
+
+If you need to connect to a different WiFi network:
+
+**Option 1: Via Balena Dashboard**
+- Navigate to your device in the Balena dashboard
+- Go to "Device Configuration"
+- Update the WiFi settings
+
+**Option 2: Force WiFi Portal**
+- Disconnect Phoniebox from all known networks
+- The hotspot will reappear automatically
+- Connect and configure new network
+
+**Option 3: Via Environment Variables**
+
+Set these in the Balena dashboard for the `wifi-connect` service:
+
+- `PORTAL_SSID`: Hotspot name (default: `Phoniebox_Setup`)
+- `PORTAL_PASSPHRASE`: Hotspot password (default: `PlayItLoud`, min 8 chars)
+- `ACTIVITY_TIMEOUT`: Portal timeout in seconds (default: `0` = never timeout)
+- `CHECK_CONN_FREQ`: Connection check frequency in seconds (default: `60`)
+
+### WiFi Troubleshooting
+
+```bash
+# View wifi-connect logs
+balena logs <device-uuid> wifi-connect --tail
+
+# SSH into wifi-connect service
+balena ssh <device-uuid> wifi-connect
+
+# Check WiFi status
+iwconfig
+
+# Manually trigger portal (disconnect from WiFi)
+# The portal will automatically appear
+```
+
 ## Accessing the Web Interface
 
-Once deployed, you can access the Phoniebox web interface at:
+Once deployed and connected to WiFi, you can access the Phoniebox web interface at:
 
 ```
 http://<device-ip-address>
@@ -330,15 +398,16 @@ Edit the MPD configuration in `balena-start.sh` to customize audio output settin
 - ✅ MPD audio playback
 - ✅ Playlists and audio management
 - ✅ **Bluetooth audio support** (speakers and headphones)
+- ✅ **WiFi setup via captive portal** (no keyboard/monitor needed)
 - ✅ GPIO support (for buttons and controls)
 - ✅ SPI support (for RC522, PN532 readers)
 - ✅ Automatic service recovery
 - ✅ PulseAudio integration
+- ✅ Multi-service architecture
 
 ### Limitations
 
 - ⚠️ Samba file sharing disabled by default (can be enabled)
-- ⚠️ WiFi hotspot mode not configured (use Balena WiFi management)
 - ⚠️ Spotify support requires additional configuration
 
 ## Support

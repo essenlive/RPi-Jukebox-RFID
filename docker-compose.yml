@@ -1,6 +1,24 @@
 version: '2.1'
 
 services:
+  # Balena WiFi Connect block for WiFi configuration via hotspot
+  wifi-connect:
+    image: balenablocks/wifi-connect:latest
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+
+    labels:
+      io.balena.features.dbus: '1'
+      io.balena.features.firmware: '1'
+
+    environment:
+      # WiFi Connect configuration
+      PORTAL_SSID: Phoniebox_Setup      # Hotspot name
+      PORTAL_PASSPHRASE: PlayItLoud     # Hotspot password (min 8 chars)
+      ACTIVITY_TIMEOUT: 0                # Keep portal open indefinitely
+      CHECK_CONN_FREQ: 60                # Check connection every 60s
+
   # Balena Audio block for audio output (ALSA, PulseAudio, Bluetooth)
   audio:
     image: balenablocks/audio:latest
@@ -26,6 +44,7 @@ services:
     network_mode: host
     restart: unless-stopped
     depends_on:
+      - wifi-connect
       - audio
 
     volumes:
